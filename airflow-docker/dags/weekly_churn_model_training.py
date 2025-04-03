@@ -1,4 +1,5 @@
 import logging
+import subprocess
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 import pandas as pd
@@ -17,6 +18,11 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from datetime import datetime
 
+import os
+
+# Set the necessary environment variables for DVC
+os.environ['DVC_USER'] = 'limengkruy'
+os.environ['DVC_PASSWORD'] = 'b1a657130ad5a3da233386baf46baa35bc361f25'  # Or use a personal access token for 2FA
 # Define the DAG
 dag = DAG(
     'weekly_churn_model_training',
@@ -39,7 +45,7 @@ def load_and_preprocess_data():
         tf.config.experimental.set_memory_growth(physical_devices[0], True)
         logging.info("GPU is now enabled with Metal API")
     
-    df = pd.read_csv(main_path + 'data/dataset/WA_Fn-UseC_-Telco-Customer-Churn.csv')
+    df = pd.read_excel(main_path + 'data/dataset/dataset_v01.xlsx')
     df = df.drop(columns=['customerID'], errors='ignore')
     df['TotalCharges'] = pd.to_numeric(df['TotalCharges'], errors='coerce')
     
@@ -198,11 +204,25 @@ def get_model_metrics(X_test, y_test, y_pred, model, model_name):
 
     return metrics
 
-# Define the task
+def push_model_to_dagshub():
+    logging.info("Pushing model to DAGsHub...")
+
+    # Push the model and data using DVC
+    subprocess.run(['dvc', 'push'], cwd='/opt/airflow/dags')
+    logging.info("Model pushed to DAGsHub.")
+
+# Define the tasks
 train_model_task = PythonOperator(
     task_id='train_model',
     python_callable=train_model,
     dag=dag,
 )
 
-train_model_task
+push_model_task = PythonOperator(
+    task_id='push_model_to_dagshub',
+    python_callable=push_model_to_dagshub,
+    dag=dag,
+)
+
+# Set task dependencies
+train_model_task >> push_model_task

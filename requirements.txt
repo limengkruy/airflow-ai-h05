@@ -5,6 +5,8 @@ pandas
 numpy
 tensorflow
 xgboost
+dvc
+dagshub
 
-#pip install scikit-learn joblib uvicorn pandas numpy tensorflow xgboost
+#pip install scikit-learn joblib uvicorn pandas numpy tensorflow xgboost dvc dagshub
 #pip install -r requirements.txt
